@@ -10,18 +10,16 @@ import (
 	"strings"
 )
 
-type PackageJson struct {
-	Dependencies    map[string]string `json:"dependencies"`
-	DevDependencies map[string]string `json:"devDependencies"`
-}
+var rgx *regexp.Regexp = regexp.MustCompile(`.*\(([0-9]{2,4})(,|\)|\s).*`)
+var rgxP *regexp.Regexp = regexp.MustCompile(`^[0-9]{2,5}$`)
 
-func ParsePackageJson(projectpath string) (*PackageJson, error) {
+func ParsePackageJson(projectpath string) (*PackageJSON, error) {
 	path := projectpath + "/package.json"
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	var pkg PackageJson
+	var pkg PackageJSON
 
 	if err := json.Unmarshal(data, &pkg); err != nil {
 		return nil, err
@@ -29,10 +27,9 @@ func ParsePackageJson(projectpath string) (*PackageJson, error) {
 	return &pkg, nil
 }
 
-func ParseCodeContext(projectpath string) ([]string, []int, error) {
-	var RawSignals []string
-	var Ports []int
-	err := filepath.WalkDir(projectpath, func(path string, d fs.DirEntry, err error) error {
+func ParseCodeContext(projectPath string) (*CodeSignals, error) {
+	var RawSignals []Signal
+	err := filepath.WalkDir(projectPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -49,25 +46,36 @@ func ParseCodeContext(projectpath string) ([]string, []int, error) {
 			}
 			rawText := string(context)
 			if strings.Contains(rawText, "express") {
-				RawSignals = append(RawSignals, "express_usage")
+				RawSignals = append(RawSignals, Signal{
+					Type: "express_usage",
+					File: path,
+				})
 			}
 			if strings.Contains(rawText, "createClient(") {
-				RawSignals = append(RawSignals, "redis_usage")
+				RawSignals = append(RawSignals, Signal{
+					Type: "redis_usage",
+					File: path,
+				})
 			}
-			if strings.Contains(rawText, "listen") {
-				Ports = parsePort(rawText)
+			ports := parsePort(rawText)
+			for _, port := range ports {
+				RawSignals = append(RawSignals, Signal{
+					Type: SignalPort,
+					File: path,
+					Port: port,
+				})
 			}
 		}
 		return nil
 	})
-	return RawSignals, Ports, err
+	return &CodeSignals{RawSignals: RawSignals}, err
 }
 
 func parsePort(s string) (Ports []int) {
-	if rgx := regexp.MustCompile(`/.*\(([0-9]{2,4})(,|\)|\s).*/gm`); rgx.MatchString(s) {
+	if rgx.MatchString(s) {
 		matches := rgx.FindAllString(s, 5)
 		for _, m := range matches {
-			if rgx := regexp.MustCompile(`/^[0-9]{2,4}$/gm`); rgx.MatchString(m) {
+			if rgxP.MatchString(m) {
 				port, err := strconv.Atoi(m)
 				if err != nil {
 					continue

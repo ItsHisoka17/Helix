@@ -1,6 +1,8 @@
 package analyzer
 
-func DetectDependencies(pkg *PackageJson) (framework string, dbs []string, redis bool) {
+import "maps"
+
+func DetectDependencies(pkg *PackageJSON) (framework string, dbs []string, redis bool) {
 	deps := mergeDeps(pkg.Dependencies, pkg.DevDependencies)
 	for dep := range deps {
 		switch dep {
@@ -50,13 +52,9 @@ func DetectDependencies(pkg *PackageJson) (framework string, dbs []string, redis
 
 func mergeDeps(a, b map[string]string) map[string]string {
 	list := make(map[string]string)
-	for k, v := range a {
-		list[k] = v
-	}
+	maps.Copy(list, a)
 
-	for k, v := range b {
-		list[k] = v
-	}
+	maps.Copy(list, b)
 
 	return list
 }
