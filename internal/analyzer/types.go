@@ -14,6 +14,9 @@ type Signal struct {
 	Port int
 }
 
+type AST struct {
+}
+
 type PackageJSON struct {
 	Dependencies    map[string]string `json:"dependencies"`
 	DevDependencies map[string]string `json:"devDependencies"`
