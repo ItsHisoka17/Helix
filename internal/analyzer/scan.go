@@ -1,88 +1,32 @@
 package analyzer
 
 import (
-	"encoding/json"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/javascript"
 )
 
-var rgx *regexp.Regexp = regexp.MustCompile(`.*\(([0-9]{2,4})(,|\)|\s).*`)
-var rgxP *regexp.Regexp = regexp.MustCompile(`^[0-9]{2,5}$`)
-
-func ParsePackageJson(projectpath string) (*PackageJSON, error) {
-	path := projectpath + "/package.json"
-	data, err := os.ReadFile(path)
+func RunQuery(node *sitter.Node, source []byte, queryStr string) ([]QueryMatch, error) {
+	var QueryMatches []QueryMatch
+	query, err := sitter.NewQuery([]byte(queryStr), javascript.GetLanguage())
 	if err != nil {
 		return nil, err
 	}
-	var pkg PackageJSON
-
-	if err := json.Unmarshal(data, &pkg); err != nil {
-		return nil, err
+	cursor := sitter.NewQueryCursor()
+	cursor.Exec(query, node)
+	for {
+		match, ok := cursor.NextMatch()
+		if !ok {
+			break
+		}
+		captures := make(map[string]*sitter.Node)
+		for _, c := range match.Captures {
+			name := query.CaptureNameForId(c.Index)
+			captures[name] = c.Node
+		}
+		QueryMatches = append(QueryMatches,
+			QueryMatch{
+				Captures: captures,
+			})
 	}
-	return &pkg, nil
-}
-
-func ParseCodeContext(projectPath string) (*CodeSignals, error) {
-	var RawSignals []Signal
-	err := filepath.WalkDir(projectPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			if d.Name() == "node_modules" {
-				return filepath.SkipAll
-			}
-			return nil
-		}
-		if strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".js") {
-			context, err := os.ReadFile(path)
-			if err != nil {
-				return nil
-			}
-			rawText := string(context)
-			if strings.Contains(rawText, "express") {
-				RawSignals = append(RawSignals, Signal{
-					Type: "express_usage",
-					File: path,
-				})
-			}
-			if strings.Contains(rawText, "createClient(") {
-				RawSignals = append(RawSignals, Signal{
-					Type: "redis_usage",
-					File: path,
-				})
-			}
-			ports := parsePort(rawText)
-			for _, port := range ports {
-				RawSignals = append(RawSignals, Signal{
-					Type: SignalPort,
-					File: path,
-					Port: port,
-				})
-			}
-		}
-		return nil
-	})
-	return &CodeSignals{RawSignals: RawSignals}, err
-}
-
-func parsePort(s string) (Ports []int) {
-	if rgx.MatchString(s) {
-		matches := rgx.FindAllString(s, 5)
-		for _, m := range matches {
-			if rgxP.MatchString(m) {
-				port, err := strconv.Atoi(m)
-				if err != nil {
-					continue
-				}
-				Ports = append(Ports, port)
-			}
-		}
-	}
-	return
+	return QueryMatches, nil
 }

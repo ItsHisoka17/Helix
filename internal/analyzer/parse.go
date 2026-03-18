@@ -1,52 +1,133 @@
 package analyzer
 
 import (
-	"context"
+	"encoding/json"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/javascript"
 )
 
-func GetNode(file []byte) (*sitter.Node, error) {
-	parser := sitter.NewParser()
-	parser.SetLanguage(javascript.GetLanguage())
-	tree, err := parser.ParseCtx(context.Background(), nil, file)
-	node := tree.RootNode()
+func ParsePackageJson(projectpath string) (*PackageJSON, error) {
+	path := projectpath + "/package.json"
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return node, err
+	var pkg PackageJSON
+
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return nil, err
+	}
+	return &pkg, nil
 }
 
-func ParsePort(node *sitter.Node, file []byte) (*Signal, error) {
-
-	if node.Type() == "call_expression" {
-		function := node.ChildByFieldName("function")
-		if function != nil {
-			if property := function.ChildByFieldName("property"); property != nil && property.Content(file) == "listen" {
-				args := node.ChildByFieldName("arguments")
-				portNode := args.NamedChild(0)
-				if portNode != nil {
-					portS := portNode.Content(file)
-					port, err := strconv.Atoi(portS)
-					if err != nil {
-						return nil, err
-					}
-					return &Signal{
-							Type: "port_detected",
-							Port: port,
-						},
-						nil
+func ParseCodeContext(projectPath string) (*CodeSignals, error) {
+	var RawSignals []Signal
+	err := filepath.WalkDir(projectPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == "node_modules" {
+				return filepath.SkipAll
+			}
+			return nil
+		}
+		if strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".js") {
+			context, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			node, err := GetNode(context)
+			if err == nil {
+				var Detectors [3]DetectFunc = [3]DetectFunc{DetectPorts, DetectExpress, nil}
+				for _, Detect := range Detectors {
+					RawSignals = append(
+						RawSignals,
+						Detect(node, context, d.Type().String())...,
+					)
 				}
 			}
+
+		}
+		return nil
+	})
+	return &CodeSignals{RawSignals: RawSignals}, err
+}
+
+func DetectPorts(root *sitter.Node, source []byte, file string) []Signal {
+	query := `
+	(call_expression
+	  function: (member_expression
+	    property: (property_identifier) @method)
+	  arguments: (arguments
+	    (number) @port))
+	`
+	matches, _ := RunQuery(root, source, query)
+
+	var Signals []Signal
+
+	for _, m := range matches {
+		method := m.Captures["method"].Content(source)
+		if method == "listen" {
+			strPort := m.Captures["port"].Content(source)
+			port, err := strconv.Atoi(strPort)
+			if err != nil {
+				continue
+			}
+			Signals = append(Signals, Signal{
+				File:       file,
+				Type:       "port_detected",
+				Port:       port,
+				Confidence: 0.95,
+			})
 		}
 	}
-	for i := 0; i < int(node.ChildCount()); i++ {
-		signal, err := ParsePort(node.Child(i), file)
-		if signal != nil || err != nil {
-			return signal, err
+	return Signals
+
+}
+
+func DetectExpress(node *sitter.Node, source []byte, file string) []Signal {
+	query := `
+	(call_expression
+	function: (identifier) @fn)
+	`
+	matches, _ := RunQuery(node, source, query)
+	var Signals []Signal
+	for _, m := range matches {
+		fn := m.Captures["fn"].Content(source)
+		if fn == "express" {
+			Signals = append(Signals, Signal{
+				File:       file,
+				Type:       "express_detected",
+				Confidence: 0.9,
+			})
 		}
 	}
-	return nil, nil
+	return Signals
+}
+
+func DetectRedis(node *sitter.Node, source []byte, file string) []Signal {
+	query := `
+	(call_expression
+	function: (member_expression
+	property: (property_identifier) @method))`
+
+	matches, _ := RunQuery(node, source, query)
+	var Signals []Signal
+	for _, m := range matches {
+		method := m.Captures["method"].Content(source)
+		if method == "CreateClient" {
+			Signals = append(Signals, Signal{
+				File:       file,
+				Type:       "redis_detected",
+				Confidence: 0.85,
+			})
+		}
+	}
+	return Signals
 }

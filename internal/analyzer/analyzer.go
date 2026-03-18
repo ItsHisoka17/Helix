@@ -1,24 +1,33 @@
 package analyzer
 
 func Analyze(projectPath string) (*AnalysisResult, error) {
-	deps, err := ParsePackageJson(projectPath)
+	pkg, err := ParsePackageJson(projectPath)
 	if err != nil {
 		return nil, err
 	}
-	framework, dbs, redis := DetectDependencies(deps)
+	frameworks, dbs, redis := DetectDependencies(pkg)
 	codeSignals, err := ParseCodeContext(projectPath)
 	if err != nil {
 		return nil, err
 	}
 	var ports []int
 	for _, signal := range codeSignals.RawSignals {
-		ports = append(ports, signal.Port)
+		if signal.Port != 0 {
+			ports = append(ports, signal.Port)
+		}
 	}
 	return &AnalysisResult{
-		Framework:  framework,
+		Framework:  frameworks,
+		Main:       pkg.Main,
+		Scripts:    pkg.Scripts,
 		Databases:  dbs,
 		Redis:      redis,
 		RawSignals: codeSignals.RawSignals,
 		Ports:      ports,
+		Confirm:    nil,
 	}, nil
+}
+
+func ValidateAnalysis(Analysis *AnalysisResult) (*AnalysisResult, error) {
+	return nil, nil
 }

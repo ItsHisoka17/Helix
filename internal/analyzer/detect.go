@@ -2,23 +2,23 @@ package analyzer
 
 import "maps"
 
-func DetectDependencies(pkg *PackageJSON) (framework string, dbs []string, redis bool) {
+func DetectDependencies(pkg *PackageJSON) (frameworks []string, dbs []string, redis bool) {
 	deps := mergeDeps(pkg.Dependencies, pkg.DevDependencies)
 	for dep := range deps {
 		switch dep {
 		case "express":
 			{
-				framework = "express"
+				frameworks = append(frameworks, "express")
 			}
 
 		case "fastify":
 			{
-				framework = "fastify"
+				frameworks = append(frameworks, "fastify")
 			}
 
 		case "@nestjs/core":
 			{
-				framework = "nest"
+				frameworks = append(frameworks, "nest")
 			}
 		}
 		switch dep {
