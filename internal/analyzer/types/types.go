@@ -1,4 +1,4 @@
-package analyzer
+package types
 
 import sitter "github.com/smacker/go-tree-sitter"
 
@@ -17,6 +17,7 @@ type Signal struct {
 	File       string
 	Port       int
 	Confidence float64
+	Rank       int
 }
 
 type PackageJSON struct {
@@ -30,7 +31,11 @@ type CodeSignals struct {
 	RawSignals []Signal
 }
 
-type Confirm func(Callback any) (string, error)
+type ConfirmMessage struct {
+	Type SignalType
+	File string
+}
+type Confirm func([]Signal) (string, error)
 
 type AnalysisResult struct {
 	ProjectPath  string

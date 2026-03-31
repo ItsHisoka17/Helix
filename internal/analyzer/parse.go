@@ -8,16 +8,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ItsHisoka17/Helix/internal/analyzer/types"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-func ParsePackageJson(projectpath string) (*PackageJSON, error) {
+func ParsePackageJson(projectpath string) (*types.PackageJSON, error) {
 	path := projectpath + "/package.json"
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	var pkg PackageJSON
+	var pkg types.PackageJSON
 
 	if err := json.Unmarshal(data, &pkg); err != nil {
 		return nil, err
@@ -25,8 +26,8 @@ func ParsePackageJson(projectpath string) (*PackageJSON, error) {
 	return &pkg, nil
 }
 
-func ParseCodeContext(projectPath string) (*CodeSignals, error) {
-	var RawSignals []Signal
+func ParseCodeContext(projectPath string) (*types.CodeSignals, error) {
+	var RawSignals []types.Signal
 	err := filepath.WalkDir(projectPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -44,7 +45,7 @@ func ParseCodeContext(projectPath string) (*CodeSignals, error) {
 			}
 			node, err := GetNode(context)
 			if err == nil {
-				var Detectors [3]DetectFunc = [3]DetectFunc{DetectPorts, DetectExpress, nil}
+				var Detectors [3]types.DetectFunc = [3]types.DetectFunc{DetectPorts, DetectExpress, DetectRedis}
 				for _, Detect := range Detectors {
 					RawSignals = append(
 						RawSignals,
@@ -56,10 +57,10 @@ func ParseCodeContext(projectPath string) (*CodeSignals, error) {
 		}
 		return nil
 	})
-	return &CodeSignals{RawSignals: RawSignals}, err
+	return &types.CodeSignals{RawSignals: RawSignals}, err
 }
 
-func DetectPorts(root *sitter.Node, source []byte, file string) []Signal {
+func DetectPorts(root *sitter.Node, source []byte, file string) []types.Signal {
 	query := `
 	(call_expression
 	  function: (member_expression
@@ -69,7 +70,7 @@ func DetectPorts(root *sitter.Node, source []byte, file string) []Signal {
 	`
 	matches, _ := RunQuery(root, source, query)
 
-	var Signals []Signal
+	var Signals []types.Signal
 
 	for _, m := range matches {
 		method := m.Captures["method"].Content(source)
@@ -79,7 +80,7 @@ func DetectPorts(root *sitter.Node, source []byte, file string) []Signal {
 			if err != nil {
 				continue
 			}
-			Signals = append(Signals, Signal{
+			Signals = append(Signals, types.Signal{
 				File:       file,
 				Type:       "port_detected",
 				Port:       port,
@@ -91,17 +92,17 @@ func DetectPorts(root *sitter.Node, source []byte, file string) []Signal {
 
 }
 
-func DetectExpress(node *sitter.Node, source []byte, file string) []Signal {
+func DetectExpress(node *sitter.Node, source []byte, file string) []types.Signal {
 	query := `
 	(call_expression
 	function: (identifier) @fn)
 	`
 	matches, _ := RunQuery(node, source, query)
-	var Signals []Signal
+	var Signals []types.Signal
 	for _, m := range matches {
 		fn := m.Captures["fn"].Content(source)
 		if fn == "express" {
-			Signals = append(Signals, Signal{
+			Signals = append(Signals, types.Signal{
 				File:       file,
 				Type:       "express_detected",
 				Confidence: 0.9,
@@ -111,18 +112,18 @@ func DetectExpress(node *sitter.Node, source []byte, file string) []Signal {
 	return Signals
 }
 
-func DetectRedis(node *sitter.Node, source []byte, file string) []Signal {
+func DetectRedis(node *sitter.Node, source []byte, file string) []types.Signal {
 	query := `
 	(call_expression
 	function: (member_expression
 	property: (property_identifier) @method))`
 
 	matches, _ := RunQuery(node, source, query)
-	var Signals []Signal
+	var Signals []types.Signal
 	for _, m := range matches {
 		method := m.Captures["method"].Content(source)
 		if method == "CreateClient" {
-			Signals = append(Signals, Signal{
+			Signals = append(Signals, types.Signal{
 				File:       file,
 				Type:       "redis_detected",
 				Confidence: 0.85,

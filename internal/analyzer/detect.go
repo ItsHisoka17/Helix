@@ -1,8 +1,12 @@
 package analyzer
 
-import "maps"
+import (
+	"maps"
 
-func DetectDependencies(pkg *PackageJSON) (frameworks []string, dbs []string, redis bool) {
+	"github.com/ItsHisoka17/Helix/internal/analyzer/types"
+)
+
+func DetectDependencies(pkg *types.PackageJSON) (frameworks []string, dbs []string, redis bool) {
 	deps := mergeDeps(pkg.Dependencies, pkg.DevDependencies)
 	for dep := range deps {
 		switch dep {

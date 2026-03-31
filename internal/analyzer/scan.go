@@ -1,12 +1,13 @@
 package analyzer
 
 import (
+	"github.com/ItsHisoka17/Helix/internal/analyzer/types"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/javascript"
 )
 
-func RunQuery(node *sitter.Node, source []byte, queryStr string) ([]QueryMatch, error) {
-	var QueryMatches []QueryMatch
+func RunQuery(node *sitter.Node, source []byte, queryStr string) ([]types.QueryMatch, error) {
+	var QueryMatches []types.QueryMatch
 	query, err := sitter.NewQuery([]byte(queryStr), javascript.GetLanguage())
 	if err != nil {
 		return nil, err
@@ -24,7 +25,7 @@ func RunQuery(node *sitter.Node, source []byte, queryStr string) ([]QueryMatch, 
 			captures[name] = c.Node
 		}
 		QueryMatches = append(QueryMatches,
-			QueryMatch{
+			types.QueryMatch{
 				Captures: captures,
 			})
 	}
