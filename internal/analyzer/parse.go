@@ -45,12 +45,16 @@ func ParseCodeContext(projectPath string) ([]types.Signal, error) {
 			}
 			node, err := GetNode(context)
 			if err == nil {
-				var Detectors [3]types.DetectFunc = [3]types.DetectFunc{DetectPorts, DetectExpress, DetectRedis}
-				for _, Detect := range Detectors {
-					RawSignals = append(
-						RawSignals,
-						Detect(node, context, d.Type().String())...,
-					)
+				_, err := d.Info()
+				if err == nil {
+					file := d.Name()
+					var Detectors [3]types.DetectFunc = [3]types.DetectFunc{DetectPorts, DetectExpress, DetectRedis}
+					for _, Detect := range Detectors {
+						RawSignals = append(
+							RawSignals,
+							Detect(node, context, file)...,
+						)
+					}
 				}
 			}
 
@@ -122,7 +126,7 @@ func DetectRedis(node *sitter.Node, source []byte, file string) []types.Signal {
 	var Signals []types.Signal
 	for _, m := range matches {
 		method := m.Captures["method"].Content(source)
-		if method == "CreateClient" {
+		if method == "createClient" {
 			Signals = append(Signals, types.Signal{
 				File:       file,
 				Type:       "redis_detected",

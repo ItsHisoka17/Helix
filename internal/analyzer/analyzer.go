@@ -42,15 +42,15 @@ func ValidateAnalysis(Analysis *types.AnalysisResult) (*types.AnalysisResult, er
 	signals := utils.MergeDuplicateSignals(Analysis.RawSignals)
 	signals = utils.SortSignals(Analysis.RawSignals)
 	scriptFileRgxCompiled := regexp.MustCompile(`([A-Za-z]|[0-9]|-|_)+\.(js|ts)`)
-	var SignalFileNames []string
-	var PortSignals []types.Signal
+	var signalFileNames []string
+	var portSignals []types.Signal
 	for _, signal := range signals {
-		SignalFileNames = append(SignalFileNames, signal.File)
+		signalFileNames = append(signalFileNames, signal.File)
 	}
 	if len(Analysis.Main) > 0 {
-		ind, f := slices.BinarySearch(SignalFileNames, Analysis.Main)
+		ind, f := slices.BinarySearch(signalFileNames, Analysis.Main)
 		if f {
-			moved, _ := utils.MoveSignal(signals, signals[ind], ind)
+			moved, _ := utils.MoveSignal(signals, slices.Index(signals, signals[ind]), ind)
 			if moved != nil {
 				signals = moved
 			}
@@ -62,9 +62,9 @@ func ValidateAnalysis(Analysis *types.AnalysisResult) (*types.AnalysisResult, er
 			if len(Analysis.Scripts[cmd]) > 0 {
 				matches := scriptFileRgxCompiled.FindStringSubmatch(Analysis.Scripts[cmd])
 				if len(matches) > 0 && len(matches[0]) > 0 {
-					ind, f := slices.BinarySearch(SignalFileNames, matches[0])
+					ind, f := slices.BinarySearch(signalFileNames, matches[0])
 					if f {
-						moved, _ := utils.MoveSignal(signals, signals[ind], ind)
+						moved, _ := utils.MoveSignal(signals, slices.Index(signals, signals[ind]), ind)
 						if moved != nil {
 							signals = moved
 						}
@@ -75,22 +75,22 @@ func ValidateAnalysis(Analysis *types.AnalysisResult) (*types.AnalysisResult, er
 	}
 	for _, signal := range signals {
 		if signal.Port > 0 {
-			PortSignals = append(PortSignals, signal)
+			portSignals = append(portSignals, signal)
 		}
 	}
-	if len(PortSignals) > 1 {
-		message, _ := Analysis.Confirm(PortSignals)
+	if len(portSignals) > 1 {
+		message, _ := Analysis.Confirm(portSignals)
 		var selectedIndex int
 		fmt.Print(message, "\n> ")
 		_, err := fmt.Scanln(&selectedIndex)
 		if err != nil {
 			return nil, err
 		}
-		if selectedIndex > len(PortSignals) {
+		if selectedIndex > len(portSignals) {
 			fmt.Printf("Invalid entry [%d]| Out of range", selectedIndex)
 		}
-		if len(PortSignals[selectedIndex].File) > 0 {
-			finalizedSignals, _ := utils.MoveSignal(PortSignals, PortSignals[selectedIndex], 0)
+		if len(portSignals[selectedIndex].File) > 0 {
+			finalizedSignals, _ := utils.MoveSignal(portSignals, selectedIndex, 0)
 			signals = finalizedSignals
 			fmt.Printf("Selected Signal\nFile: [%s]\nPort: [%d]\nSignal_Type: [%s]", signals[0].File, signals[0].Port, signals[0].Type)
 		} else {
@@ -101,7 +101,6 @@ func ValidateAnalysis(Analysis *types.AnalysisResult) (*types.AnalysisResult, er
 	return &types.AnalysisResult{
 		Framework:  string(signals[0].Type),
 		RawSignals: signals,
-		Scripts:    Analysis.Scripts,
 	}, nil
 }
 
