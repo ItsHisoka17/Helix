@@ -16,24 +16,23 @@ func Analyze(projectPath string) (*types.AnalysisResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	frameworks, dbs, redis := DetectDependencies(pkg)
-	codeSignals, err := ParseCodeContext(projectPath)
+	RawSignals, err := ParseCodeContext(projectPath)
 	if err != nil {
 		return nil, err
 	}
 	var ports []int
-	for _, signal := range codeSignals.RawSignals {
+	for _, signal := range RawSignals {
 		if signal.Port != 0 {
 			ports = append(ports, signal.Port)
 		}
 	}
 	return &types.AnalysisResult{
-		Framework:  frameworks,
+		Framework:  "",
 		Main:       pkg.Main,
 		Scripts:    pkg.Scripts,
-		Databases:  dbs,
-		Redis:      redis,
-		RawSignals: codeSignals.RawSignals,
+		Databases:  nil,
+		Redis:      false,
+		RawSignals: RawSignals,
 		Ports:      ports,
 		Confirm:    ConfirmFunc,
 	}, nil
@@ -87,10 +86,22 @@ func ValidateAnalysis(Analysis *types.AnalysisResult) (*types.AnalysisResult, er
 		if err != nil {
 			return nil, err
 		}
+		if selectedIndex > len(PortSignals) {
+			fmt.Printf("Invalid entry [%d]| Out of range", selectedIndex)
+		}
+		if len(PortSignals[selectedIndex].File) > 0 {
+			finalizedSignals, _ := utils.MoveSignal(PortSignals, PortSignals[selectedIndex], 0)
+			signals = finalizedSignals
+			fmt.Printf("Selected Signal\nFile: [%s]\nPort: [%d]\nSignal_Type: [%s]", signals[0].File, signals[0].Port, signals[0].Type)
+		} else {
+			fmt.Printf("Invalid entry [%d] | Signal not found", selectedIndex)
+		}
 	}
 
 	return &types.AnalysisResult{
+		Framework:  string(signals[0].Type),
 		RawSignals: signals,
+		Scripts:    Analysis.Scripts,
 	}, nil
 }
 
@@ -98,8 +109,8 @@ func ConfirmFunc(signals []types.Signal) (string, error) {
 
 	var message strings.Builder
 	message.WriteString("Multiple signals detected | Confirmation required\nSignals:\n")
-	for _, signal := range signals {
-		format := "\n " + strconv.Itoa(signal.Rank) + " File: " + string(signal.File) + "| " + "Signal: " + string(signal.Type)
+	for i, signal := range signals {
+		format := "\n " + strconv.Itoa(i) + " File: " + string(signal.File) + "| " + "Signal: " + string(signal.Type)
 		message.WriteString(format)
 	}
 	message.WriteString("\nInput the corresponding index for the correct file")

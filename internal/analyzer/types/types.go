@@ -27,14 +27,6 @@ type PackageJSON struct {
 	Scripts         map[string]string `json:"scripts"`
 }
 
-type CodeSignals struct {
-	RawSignals []Signal
-}
-
-type ConfirmMessage struct {
-	Type SignalType
-	File string
-}
 type Confirm func([]Signal) (string, error)
 
 type AnalysisResult struct {
@@ -42,7 +34,7 @@ type AnalysisResult struct {
 	Dependencies map[string]string
 	Main         string
 	Scripts      map[string]string
-	Framework    []string
+	Framework    string
 	Databases    []string
 	Redis        bool
 	RawSignals   []Signal

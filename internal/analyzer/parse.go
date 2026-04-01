@@ -26,7 +26,7 @@ func ParsePackageJson(projectpath string) (*types.PackageJSON, error) {
 	return &pkg, nil
 }
 
-func ParseCodeContext(projectPath string) (*types.CodeSignals, error) {
+func ParseCodeContext(projectPath string) ([]types.Signal, error) {
 	var RawSignals []types.Signal
 	err := filepath.WalkDir(projectPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -57,7 +57,7 @@ func ParseCodeContext(projectPath string) (*types.CodeSignals, error) {
 		}
 		return nil
 	})
-	return &types.CodeSignals{RawSignals: RawSignals}, err
+	return RawSignals, err
 }
 
 func DetectPorts(root *sitter.Node, source []byte, file string) []types.Signal {

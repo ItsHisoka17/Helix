@@ -36,8 +36,9 @@ func MergeDuplicateSignals(signals []types.Signal) []types.Signal {
 	var fixed []types.Signal
 	for _, signal := range signals {
 		if len(new) > 0 {
-			if len(new[signal.File].Type) > 0 {
-				if signal.Port > 0 && new[signal.File].Port == 0 {
+			_, exists := new[signal.File]
+			if exists {
+				if (signal.Port > 0 && new[signal.File].Port == 0) || (signal.Port > 0 && signal.Port == new[signal.File].Port) {
 					new[signal.File] = types.Signal{
 						Type:       new[signal.File].Type,
 						File:       signal.File,
