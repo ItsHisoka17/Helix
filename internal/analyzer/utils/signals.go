@@ -37,6 +37,7 @@ func MoveSignal(signals []types.Signal, from int, index int) ([]types.Signal, er
 
 func MergeDuplicateSignals(signals []types.Signal) []types.Signal {
 	var new map[string]types.Signal = make(map[string]types.Signal)
+	var keepDuplicates []types.Signal
 	var fixed []types.Signal
 	for _, signal := range signals {
 		seen, exists := new[signal.File]
@@ -49,6 +50,8 @@ func MergeDuplicateSignals(signals []types.Signal) []types.Signal {
 			}
 			if seen.Type == types.SignalPort && signal.Type != types.SignalPort {
 				seen.Type = signal.Type
+			} else if seen.Type != types.SignalPort && seen.Type != signal.Type {
+				keepDuplicates = append(keepDuplicates, signal)
 			}
 			new[signal.File] = seen
 			continue
@@ -58,5 +61,6 @@ func MergeDuplicateSignals(signals []types.Signal) []types.Signal {
 	for _, signal := range new {
 		fixed = append(fixed, signal)
 	}
+	fixed = append(fixed, keepDuplicates...)
 	return fixed
 }
