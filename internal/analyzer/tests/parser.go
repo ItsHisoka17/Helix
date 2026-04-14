@@ -7,46 +7,38 @@ import (
 	"slices"
 
 	"github.com/ItsHisoka17/Helix/internal/analyzer"
+	"github.com/ItsHisoka17/Helix/internal/analyzer/tests/utils"
 )
 
 type Fixtures struct {
-	path         string
-	main         string
-	port         int
-	signal_types []string
+	Path         string   `json:"path"`
+	Main         string   `json:"main"`
+	Port         int      `json:"port"`
+	Signal_types []string `json:"signal_types"`
 }
 
 func TestParsers() {
 	path, err := os.Getwd()
 	if err == nil {
-		data, err1 := os.ReadFile(path + "/internal/analyzer/tests/fixtures/fixtures.json")
+		data, err1 := os.ReadFile(path + "/fixtures/fixtures.json")
 		if err1 == nil {
 			var fixtures Fixtures
 			err2 := json.Unmarshal(data, &fixtures)
 			if err2 == nil {
 				fPath := path
-				fPath += "/internal/analyzer/tests/fixtures"
+				fPath += "/fixtures"
 				pkg, parseError := analyzer.ParsePackageJson(fPath)
 				if parseError != nil {
-					e := fmt.Errorf("--- Test#1 Failed\nTest Path: %s\n%s\n", path, parseError.Error())
-					if e != nil {
-						fmt.Print(e.Error())
-					}
+					utils.FormatError(1, path, parseError.Error())
 				}
-				if pkg.Main != fixtures.main || len(pkg.Scripts) < 1 || len(pkg.Dependencies) < 1 {
-					e0 := fmt.Errorf("--- Test#1 Failed\nTest Path: %s\nTest Result:\n%+v\n", path, pkg)
-					if e0 != nil {
-						fmt.Print(e0.Error())
-					}
+				if pkg.Main != fixtures.Main || len(pkg.Scripts) < 1 || len(pkg.Dependencies) < 1 {
+					utils.FormatError(1, Tests[1], path, *pkg)
 				} else {
-					fmt.Printf("--- Test#1 Passed\nTest Path: %s\nTest Result:\n%+v\n", path, pkg)
+					utils.FormatSuccess(1, Tests[1], path, *pkg)
 				}
 				signals, parseError1 := analyzer.ParseCodeContext(fPath)
 				if parseError1 != nil {
-					e1 := fmt.Errorf("--- Test#2 Failed\nTest Path: %s\n%s\n", path, parseError1.Error())
-					if e1 != nil {
-						fmt.Print(e1)
-					}
+					utils.FormatError(1, Tests[1], path, parseError1.Error())
 				}
 				var port int
 				var signalMatch bool = false
@@ -55,22 +47,21 @@ func TestParsers() {
 						port = signal.Port
 					}
 					if !signalMatch {
-						if slices.Contains(fixtures.signal_types, string(signal.Type)) {
+						if slices.Contains(fixtures.Signal_types, string(signal.Type)) {
 							signalMatch = true
 						}
 					}
 				}
 				if port <= 0 {
-					e2 := fmt.Errorf("--- Test#2 Failed\nTest Path: %s\nPort not found\nTest Result:\n%+v\n", path, signals)
-					if e2 != nil {
-						fmt.Print(e2.Error())
-					}
+					utils.FormatError(2, Tests[2], path, signals)
+				} else {
+					utils.FormatSuccess(2, Tests[2], path, port)
 				}
 				if !signalMatch {
-					e3 := fmt.Errorf("--- Test#3 Failed\nTest Path: %s\nSignal not found\nTest Result:\n%+v\n%+v\n", path, signals, signalMatch)
-					if e3 != nil {
-						fmt.Print(e3)
-					}
+					utils.FormatError(3, path, Tests[3], signals, "\n", signalMatch)
+				}
+				if signalMatch && port > 0 {
+					utils.FormatSuccess(3, Tests[3], path, signals, signalMatch)
 				}
 			} else {
 				fmt.Print(err2.Error())
@@ -81,8 +72,4 @@ func TestParsers() {
 	} else {
 		fmt.Print(err.Error())
 	}
-}
-
-func main() {
-	TestParsers()
 }
