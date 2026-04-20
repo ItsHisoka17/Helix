@@ -35,32 +35,44 @@ func MoveSignal(signals []types.Signal, from int, index int) ([]types.Signal, er
 	return signals, nil
 }
 
-func MergeDuplicateSignals(signals []types.Signal) []types.Signal {
-	var new map[string]types.Signal = make(map[string]types.Signal)
-	var keepDuplicates []types.Signal
-	var fixed []types.Signal
+func MergeSignals(signals []types.Signal) []types.Signal {
+	var seenMap map[string]types.Signal = make(map[string]types.Signal)
+	var keep []types.Signal
+	var merged []types.Signal
 	for _, signal := range signals {
-		seen, exists := new[signal.File]
+		seen, exists := seenMap[signal.File]
 		if exists {
-			if signal.Port > 0 && seen.Port < 1 {
-				seen.Port = signal.Port
+			keepSignal := signal.Port < 1 && (signal.Type != types.SignalPort && seen.Type == types.SignalPort)
+			keepSeen := seen.Port < 1 && (seen.Type != types.SignalPort && signal.Type == types.SignalPort)
+			if keepSignal {
+				seenMap[signal.File] = types.Signal{
+					File:       signal.File,
+					Port:       seen.Port,
+					Type:       signal.Type,
+					Confidence: signal.Confidence,
+				}
+				continue
 			}
-			if seen.Confidence < signal.Confidence {
-				seen.Confidence = signal.Confidence
+			if keepSeen {
+				seenMap[signal.File] = types.Signal{
+					File:       signal.File,
+					Port:       signal.Port,
+					Type:       seen.Type,
+					Confidence: signal.Confidence,
+				}
+				continue
 			}
-			if seen.Type == types.SignalPort && signal.Type != types.SignalPort {
-				seen.Type = signal.Type
-			} else if seen.Type != types.SignalPort && seen.Type != signal.Type {
-				keepDuplicates = append(keepDuplicates, signal)
+			if !keepSignal && !keepSeen {
+				keep = append(keep, signal)
+				continue
 			}
-			new[signal.File] = seen
-			continue
+		} else {
+			seenMap[signal.File] = signal
 		}
-		new[signal.File] = signal
 	}
-	for _, signal := range new {
-		fixed = append(fixed, signal)
+	for _, s := range seenMap {
+		merged = append(merged, s)
 	}
-	fixed = append(fixed, keepDuplicates...)
-	return fixed
+	merged = append(merged, keep...)
+	return merged
 }

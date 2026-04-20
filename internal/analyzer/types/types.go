@@ -17,7 +17,6 @@ type Signal struct {
 	File       string
 	Port       int
 	Confidence float64
-	Rank       int
 }
 
 type PackageJSON struct {
@@ -27,7 +26,7 @@ type PackageJSON struct {
 	Scripts         map[string]string `json:"scripts"`
 }
 
-type Confirm func([]Signal) (string, error)
+type Confirm func([]Signal, string) ([]Signal, error)
 
 type AnalysisResult struct {
 	ProjectPath  string

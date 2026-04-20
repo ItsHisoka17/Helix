@@ -38,19 +38,34 @@ func Analyze(projectPath string) (*types.AnalysisResult, error) {
 	}, nil
 }
 
-func ValidateAnalysis(Analysis *types.AnalysisResult) (*types.AnalysisResult, error) {
-	signals := utils.MergeDuplicateSignals(Analysis.RawSignals)
-	signals = utils.SortSignals(Analysis.RawSignals)
+func ValidateAnalysis(projectPath string) (*types.AnalysisResult, error) {
+	Analysis, err := Analyze(projectPath)
+	if err != nil {
+		fmt.Printf("Error during analysis [AnalyzerError]\n%s", err.Error())
+		return nil, err
+	}
+	signals := utils.MergeSignals(Analysis.RawSignals)
+	signals = utils.SortSignals(signals)
 	scriptFileRgxCompiled := regexp.MustCompile(`([A-Za-z]|[0-9]|-|_)+\.(js|ts)`)
 	var signalFileNames []string
-	var portSignals []types.Signal
+	var framework string
+	var redis bool
+
 	for _, signal := range signals {
+		if len(framework) < 1 {
+			if signal.Type != types.SignalPort && signal.Type != types.RedisType {
+				framework = strings.Split(string(signal.Type), "_")[0]
+			}
+		}
 		signalFileNames = append(signalFileNames, signal.File)
+		if !redis && signal.Type == types.RedisType {
+			redis = true
+		}
 	}
 	if len(Analysis.Main) > 0 {
-		ind, f := slices.BinarySearch(signalFileNames, Analysis.Main)
-		if f {
-			moved, _ := utils.MoveSignal(signals, slices.Index(signals, signals[ind]), ind)
+		ind := slices.Index(signalFileNames, Analysis.Main)
+		if ind != -1 {
+			moved, _ := utils.MoveSignal(signals, ind, 0)
 			if moved != nil {
 				signals = moved
 			}
@@ -73,45 +88,51 @@ func ValidateAnalysis(Analysis *types.AnalysisResult) (*types.AnalysisResult, er
 			}
 		}
 	}
-	for _, signal := range signals {
-		if signal.Port > 0 {
-			portSignals = append(portSignals, signal)
-		}
-	}
-	if len(portSignals) > 1 {
-		message, _ := Analysis.Confirm(portSignals)
-		var selectedIndex int
-		fmt.Print(message, "\n> ")
-		_, err := fmt.Scanln(&selectedIndex)
-		if err != nil {
-			return nil, err
-		}
-		if selectedIndex > len(portSignals) {
-			fmt.Printf("Invalid entry [%d]| Out of range", selectedIndex)
-		}
-		if len(portSignals[selectedIndex].File) > 0 {
-			finalizedSignals, _ := utils.MoveSignal(portSignals, selectedIndex, 0)
-			signals = finalizedSignals
-			fmt.Printf("Selected Signal\nFile: [%s]\nPort: [%d]\nSignal_Type: [%s]", signals[0].File, signals[0].Port, signals[0].Type)
-		} else {
-			fmt.Printf("Invalid entry [%d] | Signal not found", selectedIndex)
-		}
+	if len(signals) > 1 {
+		confirmedSignals, _ := Analysis.Confirm(signals, projectPath)
+		signals = confirmedSignals
 	}
 
 	return &types.AnalysisResult{
-		Framework:  string(signals[0].Type),
+		Framework:  framework,
 		RawSignals: signals,
+		Main:       Analysis.Main,
+		Scripts:    Analysis.Scripts,
+		Databases:  Analysis.Databases,
+		Ports:      Analysis.Ports,
+		Redis:      true,
 	}, nil
 }
 
-func ConfirmFunc(signals []types.Signal) (string, error) {
-
+func ConfirmFunc(signals []types.Signal, projectPath string) ([]types.Signal, error) {
 	var message strings.Builder
 	message.WriteString("Multiple signals detected | Confirmation required\nSignals:\n")
 	for i, signal := range signals {
+		if signal.Type == types.RedisType {
+			continue
+		}
 		format := "\n " + strconv.Itoa(i) + " File: " + string(signal.File) + "| " + "Signal: " + string(signal.Type)
 		message.WriteString(format)
 	}
 	message.WriteString("\nInput the corresponding index for the correct file")
-	return message.String(), nil
+	var selectedIndex int
+	fmt.Print(message.String(), "\n> ")
+	_, err := fmt.Scanln(&selectedIndex)
+	if err != nil {
+		return nil, err
+	}
+
+	if selectedIndex >= len(signals) {
+		fmt.Printf("Invalid entry [%d]| Out of range\n", selectedIndex)
+		ValidateAnalysis(projectPath)
+		return nil, nil
+	}
+	if len(signals[selectedIndex].File) > 0 {
+		finalizedSignals, _ := utils.MoveSignal(signals, selectedIndex, 0)
+		signals = finalizedSignals
+		fmt.Printf("Selected Signal\nFile: [%s]\nPort: [%d]\nSignal_Type: [%s]\n", signals[0].File, signals[0].Port, signals[0].Type)
+	} else {
+		fmt.Printf("Invalid entry [%d] | Signal not found\n", selectedIndex)
+	}
+	return signals, nil
 }
