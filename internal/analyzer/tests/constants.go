@@ -1,4 +1,4 @@
-package main
+package tests
 
 type Fixtures struct {
 	Path         string   `json:"path"`

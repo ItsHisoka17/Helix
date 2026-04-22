@@ -1,21 +1,23 @@
-package main
+package tests
 
 import (
 	"encoding/json"
 	"os"
 	"slices"
+	"testing"
 
 	"github.com/ItsHisoka17/Helix/internal/analyzer"
 	testUtils "github.com/ItsHisoka17/Helix/internal/analyzer/tests/utils"
 	"github.com/ItsHisoka17/Helix/internal/analyzer/utils"
+	globalUtils "github.com/ItsHisoka17/Helix/internal/global/utils"
 )
 
-func main() {
+func TestParser(t *testing.T) {
 	path, err := os.Getwd()
 	if utils.HandleError(err) {
 		return
 	}
-	data, err1 := os.ReadFile(testUtils.JoinPath(path, FileMap["dir"], FileMap["json"]))
+	data, err1 := os.ReadFile(globalUtils.JoinPath(path, FileMap["dir"], FileMap["json"]))
 	if utils.HandleError(err1) {
 		return
 	}
@@ -24,19 +26,20 @@ func main() {
 	if utils.HandleError(err2) {
 		return
 	}
-	pathF := testUtils.JoinPath(path, FileMap["dir"])
+	pathF := globalUtils.JoinPath(path, FileMap["dir"])
 	pkg, parseError := analyzer.ParsePackageJson(pathF)
 	if parseError != nil {
-		testUtils.FormatError(1, path, parseError.Error())
+		testUtils.FormatError(t, 1, Tests[1], path, parseError.Error())
 	}
 	if pkg.Main != fixtures.Main || len(pkg.Scripts) < 1 || len(pkg.Dependencies) < 1 {
-		testUtils.FormatError(1, Tests[1], path, *pkg)
+
+		testUtils.FormatError(t, 1, Tests[1], path, *pkg)
 	} else {
 		testUtils.FormatSuccess(1, Tests[1], path, *pkg)
 	}
 	signals, parseError1 := analyzer.ParseCodeContext(pathF)
 	if parseError1 != nil {
-		testUtils.FormatError(1, Tests[1], path, parseError1.Error())
+		testUtils.FormatError(t, 1, Tests[1], path, parseError1.Error())
 	}
 	var ports []int
 	var signalMatch bool = false
@@ -51,12 +54,12 @@ func main() {
 		}
 	}
 	if len(ports) <= 0 {
-		testUtils.FormatError(2, Tests[2], path, signals)
+		testUtils.FormatError(t, 2, Tests[2], path, signals)
 	} else {
 		testUtils.FormatSuccess(2, Tests[2], path, ports)
 	}
 	if !signalMatch {
-		testUtils.FormatError(3, path, Tests[3], signals, "\n", signalMatch)
+		testUtils.FormatError(t, 3, path, Tests[3], signals, "\n", signalMatch)
 	}
 	if signalMatch && len(ports) > 0 {
 		testUtils.FormatSuccess(3, Tests[3], path, signals, signalMatch)

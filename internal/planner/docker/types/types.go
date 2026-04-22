@@ -1,5 +1,17 @@
 package types
 
+type Main struct {
+	File string
+	Path string
+	Port string
+}
+
+type DockerCompile struct {
+	Ports    []int
+	Commands map[int]string
+	Main     Main
+}
+
 type Docker struct {
 	Compile        bool
 	Environment    string

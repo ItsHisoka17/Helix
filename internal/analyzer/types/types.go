@@ -10,6 +10,8 @@ const (
 	SignalPort  SignalType = "port_detected"
 )
 
+var MainCmds []string = []string{"start", "run"}
+
 var MainFiles []string = []string{"server", "app", "main", "index"}
 
 type Signal struct {
@@ -17,6 +19,7 @@ type Signal struct {
 	File       string
 	Port       int
 	Confidence float64
+	Framework  bool
 }
 
 type PackageJSON struct {

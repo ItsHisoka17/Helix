@@ -11,14 +11,14 @@ import (
 	"github.com/ItsHisoka17/Helix/internal/analyzer/utils"
 )
 
-func Analyze(projectPath string) (*types.AnalysisResult, error) {
+func Analyze(projectPath string) (*types.AnalysisResult, *types.PackageJSON, error) {
 	pkg, err := ParsePackageJson(projectPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	RawSignals, err := ParseCodeContext(projectPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var ports []int
 	for _, signal := range RawSignals {
@@ -35,17 +35,16 @@ func Analyze(projectPath string) (*types.AnalysisResult, error) {
 		RawSignals: RawSignals,
 		Ports:      ports,
 		Confirm:    ConfirmFunc,
-	}, nil
+	}, pkg, nil
 }
 
 func ValidateAnalysis(projectPath string) (*types.AnalysisResult, error) {
-	Analysis, err := Analyze(projectPath)
+	Analysis, pkg, err := Analyze(projectPath)
 	if err != nil {
 		fmt.Printf("Error during analysis [AnalyzerError]\n%s", err.Error())
 		return nil, err
 	}
-	signals := utils.MergeSignals(Analysis.RawSignals)
-	signals = utils.SortSignals(signals)
+	signals := filterSignals(Analysis.RawSignals, pkg)
 	scriptFileRgxCompiled := regexp.MustCompile(`([A-Za-z]|[0-9]|-|_)+\.(js|ts)`)
 	var signalFileNames []string
 	var framework string
@@ -72,8 +71,7 @@ func ValidateAnalysis(projectPath string) (*types.AnalysisResult, error) {
 		}
 	}
 	if Analysis.Scripts != nil {
-		var mainCmds [2]string = [2]string{"run", "start"}
-		for _, cmd := range mainCmds {
+		for _, cmd := range types.MainCmds {
 			if len(Analysis.Scripts[cmd]) > 0 {
 				matches := scriptFileRgxCompiled.FindStringSubmatch(Analysis.Scripts[cmd])
 				if len(matches) > 0 && len(matches[0]) > 0 {
@@ -135,4 +133,10 @@ func ConfirmFunc(signals []types.Signal, projectPath string) ([]types.Signal, er
 		fmt.Printf("Invalid entry [%d] | Signal not found\n", selectedIndex)
 	}
 	return signals, nil
+}
+
+func filterSignals(signals []types.Signal, pkg *types.PackageJSON) []types.Signal {
+	signals = utils.MergeSignals(signals)
+	signals = utils.AssignConfidence(signals, pkg)
+	return utils.SortSignals(signals)
 }

@@ -85,10 +85,9 @@ func DetectPorts(root *sitter.Node, source []byte, file string) []types.Signal {
 				continue
 			}
 			Signals = append(Signals, types.Signal{
-				File:       file,
-				Type:       "port_detected",
-				Port:       port,
-				Confidence: 0.95,
+				File: file,
+				Type: "port_detected",
+				Port: port,
 			})
 		}
 	}
@@ -107,9 +106,9 @@ func DetectExpress(node *sitter.Node, source []byte, file string) []types.Signal
 		fn := m.Captures["fn"].Content(source)
 		if fn == "express" {
 			Signals = append(Signals, types.Signal{
-				File:       file,
-				Type:       "express_detected",
-				Confidence: 0.9,
+				File:      file,
+				Type:      "express_detected",
+				Framework: true,
 			})
 		}
 	}
@@ -128,9 +127,8 @@ func DetectRedis(node *sitter.Node, source []byte, file string) []types.Signal {
 		method := m.Captures["method"].Content(source)
 		if method == "createClient" {
 			Signals = append(Signals, types.Signal{
-				File:       file,
-				Type:       "redis_detected",
-				Confidence: 0.85,
+				File: file,
+				Type: "redis_detected",
 			})
 		}
 	}

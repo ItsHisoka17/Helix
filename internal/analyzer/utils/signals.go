@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"sort"
+	"strings"
 
 	"github.com/ItsHisoka17/Helix/internal/analyzer/types"
 )
@@ -75,4 +76,34 @@ func MergeSignals(signals []types.Signal) []types.Signal {
 	}
 	merged = append(merged, keep...)
 	return merged
+}
+
+func AssignConfidence(signals []types.Signal, pkg *types.PackageJSON) []types.Signal {
+	type score struct {
+		f bool
+		s float64
+	}
+	for i, signal := range signals {
+		var scoreMap map[string]score = make(map[string]score)
+		scoreMap["f"] = score{f: signal.Framework, s: 0.3}
+		scoreMap["m"] = score{f: (signal.File == pkg.Main), s: 0.5}
+		scoreMap["p"] = score{f: (signal.Port > 0), s: 0.2}
+		var isScript bool
+		for _, cmd := range types.MainCmds {
+			script, exists := pkg.Scripts[cmd]
+			if exists {
+				if strings.Contains(script, signal.File) {
+					isScript = true
+				}
+				break
+			}
+		}
+		scoreMap["isScript"] = score{f: isScript, s: 0.5}
+		for _, v := range scoreMap {
+			if v.f {
+				signals[i].Confidence = signals[i].Confidence + v.s
+			}
+		}
+	}
+	return signals
 }
