@@ -59,9 +59,30 @@ func TestParser(t *testing.T) {
 		testUtils.FormatSuccess(2, Tests[2], path, ports)
 	}
 	if !signalMatch {
-		testUtils.FormatError(t, 3, path, Tests[3], signals, "\n", signalMatch)
+		testUtils.FormatError(t, 3, Tests[3], path, signals, "\n", signalMatch)
 	}
 	if signalMatch && len(ports) > 0 {
 		testUtils.FormatSuccess(3, Tests[3], path, signals, signalMatch)
+	}
+
+	analyzed, analyzerError := analyzer.ValidateAnalysis(pathF, true)
+
+	if analyzerError != nil {
+		testUtils.FormatError(t, 4, Tests[4], path, analyzerError)
+		return
+	}
+	scriptMatch := true
+	frameworkMatch := analyzed.Framework == fixtures.Framework
+	portMatch := slices.Contains(analyzed.Ports, fixtures.Port)
+	signalLengthMatch := len(analyzed.RawSignals) >= 2
+	for script := range fixtures.Scripts {
+		if _, has := analyzed.Scripts[script]; !has {
+			scriptMatch = false
+		}
+	}
+	if scriptMatch && frameworkMatch && portMatch && signalLengthMatch && analyzed.Redis {
+		testUtils.FormatSuccess(4, Tests[4], path, *analyzed)
+	} else {
+		testUtils.FormatError(t, 4, Tests[4], path, *analyzed, []bool{scriptMatch, frameworkMatch, portMatch, signalLengthMatch})
 	}
 }

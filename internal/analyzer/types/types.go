@@ -29,7 +29,7 @@ type PackageJSON struct {
 	Scripts         map[string]string `json:"scripts"`
 }
 
-type Confirm func([]Signal, string) ([]Signal, error)
+type Confirm func([]Signal, string, bool) ([]Signal, error)
 
 type AnalysisResult struct {
 	ProjectPath  string

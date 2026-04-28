@@ -15,5 +15,6 @@
         "build": "tsc -b",
         "test": "npx jest",
         "start": "node index.js"
-    }
+    },
+    "framework": "express"
 }

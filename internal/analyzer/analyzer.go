@@ -38,7 +38,7 @@ func Analyze(projectPath string) (*types.AnalysisResult, *types.PackageJSON, err
 	}, pkg, nil
 }
 
-func ValidateAnalysis(projectPath string) (*types.AnalysisResult, error) {
+func ValidateAnalysis(projectPath string, test bool) (*types.AnalysisResult, error) {
 	Analysis, pkg, err := Analyze(projectPath)
 	if err != nil {
 		fmt.Printf("Error during analysis [AnalyzerError]\n%s", err.Error())
@@ -75,9 +75,9 @@ func ValidateAnalysis(projectPath string) (*types.AnalysisResult, error) {
 			if len(Analysis.Scripts[cmd]) > 0 {
 				matches := scriptFileRgxCompiled.FindStringSubmatch(Analysis.Scripts[cmd])
 				if len(matches) > 0 && len(matches[0]) > 0 {
-					ind, f := slices.BinarySearch(signalFileNames, matches[0])
-					if f {
-						moved, _ := utils.MoveSignal(signals, slices.Index(signals, signals[ind]), ind)
+					ind := slices.Index(signalFileNames, matches[0])
+					if ind != -1 {
+						moved, _ := utils.MoveSignal(signals, ind, 0)
 						if moved != nil {
 							signals = moved
 						}
@@ -87,8 +87,10 @@ func ValidateAnalysis(projectPath string) (*types.AnalysisResult, error) {
 		}
 	}
 	if len(signals) > 1 {
-		confirmedSignals, _ := Analysis.Confirm(signals, projectPath)
-		signals = confirmedSignals
+		confirmedSignals, _ := Analysis.Confirm(signals, projectPath, test)
+		if confirmedSignals != nil {
+			signals = confirmedSignals
+		}
 	}
 
 	return &types.AnalysisResult{
@@ -102,7 +104,10 @@ func ValidateAnalysis(projectPath string) (*types.AnalysisResult, error) {
 	}, nil
 }
 
-func ConfirmFunc(signals []types.Signal, projectPath string) ([]types.Signal, error) {
+func ConfirmFunc(signals []types.Signal, projectPath string, test bool) ([]types.Signal, error) {
+	if test {
+		return nil, nil
+	}
 	var message strings.Builder
 	message.WriteString("Multiple signals detected | Confirmation required\nSignals:\n")
 	for i, signal := range signals {
@@ -122,7 +127,7 @@ func ConfirmFunc(signals []types.Signal, projectPath string) ([]types.Signal, er
 
 	if selectedIndex >= len(signals) {
 		fmt.Printf("Invalid entry [%d]| Out of range\n", selectedIndex)
-		ValidateAnalysis(projectPath)
+		ValidateAnalysis(projectPath, test)
 		return nil, nil
 	}
 	if len(signals[selectedIndex].File) > 0 {
