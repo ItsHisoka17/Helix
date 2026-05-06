@@ -3,12 +3,12 @@ package types
 type Main struct {
 	File string
 	Path string
-	Port string
+	Port int
 }
 
 type DockerCompile struct {
-	Ports    []int
-	Commands map[int]string
+	PortMap  map[int]string
+	Commands map[string]string
 	Main     Main
 }
 
