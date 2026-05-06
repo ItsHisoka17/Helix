@@ -48,6 +48,7 @@ func MergeSignals(signals []types.Signal) []types.Signal {
 			if keepSignal {
 				seenMap[signal.File] = types.Signal{
 					File:       signal.File,
+					Path:       signal.Path,
 					Port:       seen.Port,
 					Type:       signal.Type,
 					Confidence: signal.Confidence,
@@ -58,6 +59,7 @@ func MergeSignals(signals []types.Signal) []types.Signal {
 				seenMap[signal.File] = types.Signal{
 					File:       signal.File,
 					Port:       signal.Port,
+					Path:       signal.Path,
 					Type:       seen.Type,
 					Confidence: signal.Confidence,
 				}

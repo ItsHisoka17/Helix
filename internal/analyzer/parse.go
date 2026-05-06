@@ -52,7 +52,7 @@ func ParseCodeContext(projectPath string) ([]types.Signal, error) {
 					for _, Detect := range Detectors {
 						RawSignals = append(
 							RawSignals,
-							Detect(node, context, file)...,
+							Detect(node, context, file, path)...,
 						)
 					}
 				}
@@ -64,7 +64,7 @@ func ParseCodeContext(projectPath string) ([]types.Signal, error) {
 	return RawSignals, err
 }
 
-func DetectPorts(root *sitter.Node, source []byte, file string) []types.Signal {
+func DetectPorts(root *sitter.Node, source []byte, file string, path string) []types.Signal {
 	query := `
 	(call_expression
 	  function: (member_expression
@@ -86,6 +86,7 @@ func DetectPorts(root *sitter.Node, source []byte, file string) []types.Signal {
 			}
 			Signals = append(Signals, types.Signal{
 				File: file,
+				Path: path,
 				Type: "port_detected",
 				Port: port,
 			})
@@ -95,7 +96,7 @@ func DetectPorts(root *sitter.Node, source []byte, file string) []types.Signal {
 
 }
 
-func DetectExpress(node *sitter.Node, source []byte, file string) []types.Signal {
+func DetectExpress(node *sitter.Node, source []byte, file string, path string) []types.Signal {
 	query := `
 	(call_expression
 	function: (identifier) @fn)
@@ -107,6 +108,7 @@ func DetectExpress(node *sitter.Node, source []byte, file string) []types.Signal
 		if fn == "express" {
 			Signals = append(Signals, types.Signal{
 				File:      file,
+				Path:      path,
 				Type:      "express_detected",
 				Framework: true,
 			})
@@ -115,7 +117,7 @@ func DetectExpress(node *sitter.Node, source []byte, file string) []types.Signal
 	return Signals
 }
 
-func DetectRedis(node *sitter.Node, source []byte, file string) []types.Signal {
+func DetectRedis(node *sitter.Node, source []byte, file string, path string) []types.Signal {
 	query := `
 	(call_expression
 	function: (member_expression
@@ -128,6 +130,7 @@ func DetectRedis(node *sitter.Node, source []byte, file string) []types.Signal {
 		if method == "createClient" {
 			Signals = append(Signals, types.Signal{
 				File: file,
+				Path: path,
 				Type: "redis_detected",
 			})
 		}

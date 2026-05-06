@@ -17,6 +17,7 @@ var MainFiles []string = []string{"server", "app", "main", "index"}
 type Signal struct {
 	Type       SignalType
 	File       string
+	Path       string
 	Port       int
 	Confidence float64
 	Framework  bool
@@ -48,4 +49,4 @@ type QueryMatch struct {
 	Captures map[string]*sitter.Node
 }
 
-type DetectFunc func(*sitter.Node, []byte, string) []Signal
+type DetectFunc func(*sitter.Node, []byte, string, string) []Signal
